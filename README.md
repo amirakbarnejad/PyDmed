@@ -1,5 +1,5 @@
 
-[![button](button_quickstart.png =592x178)](https://amirakbarnejad.github.io/Tutorial/tutorial_section1.html)
+[![button](button_quickstart2.png | width=48)](https://amirakbarnejad.github.io/Tutorial/tutorial_section1.html)
 
 # PyDmed (Python Dataloader for Medical Imaging)
 
