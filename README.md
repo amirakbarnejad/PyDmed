@@ -10,9 +10,6 @@ We want the dataloader to repeatedly do the following steps:
 1. randomly select one of those huge images (i.e., WSIs).
 2. crop and return a random 224x224 patch from the huge image.
 
-In an mediocre machine, the second operation takes 30-40 mili seconds.
-Therefoer, a naive dataloader can provide only 20-30 patches per second to GPU(s) which makes the processing speed of GPU(s) useless. 
-
 
 ***PyDmed can solve this issue.*** 
 
