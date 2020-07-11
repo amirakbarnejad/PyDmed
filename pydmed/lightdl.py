@@ -251,21 +251,27 @@ class SmallChunkCollector(mp.Process):
         # ~ print("reached here 5")
         bigchunk = queue_bc.get()
         # ~ print("reached here 6")
+        call_count = 0
         while(True):
             if(self.queue_smallchunks.qsize() < self.const_global_info["maxlength_queue_smallchunk"]):
                 # ~ print(" ----------------- reached here 7")
                 #print("  smallchunkcollector saw emtpy place in queue.")
-                smallchunk = self.extract_smallchunk(bigchunk, self.last_message_from_root)
+                smallchunk = self.extract_smallchunk(call_count, bigchunk, self.last_message_from_root)
+                call_count += 1
                 #print("... and extracted a smallchunk.")
                 self.queue_smallchunks.put_nowait(smallchunk)
                 #print("     placed a smallchunk in queue.")
         
     @abstractmethod     
-    def extract_smallchunk(self, bigchunk, last_message_fromroot):
+    def extract_smallchunk(self, call_count, bigchunk, last_message_fromroot):
         '''
         Extract and return a smallchunk. Please note that in this function you have access to 
         self.bigchunk, self.patient, self.const_global_info.
         Inputs:
+            - `call_count`: an integer. While the `SmallChunkCollector` is collecting `SmallChunk`s, 
+                             the function `extract_smallchunk` is called several times.
+                             The argument `count_calls` is the number of times the `extract_smallchunk` is called
+                             since the `SmallChunkCollector` (and its child `BigChunkLoader`) has started working. 
             - bigchunk: the extracted bigchunk.
             - `last_message_fromroot`: The last messsage sent to this patient. Indeed, this is the message sent by calling the function
                                        `lightdl.send_message`.
