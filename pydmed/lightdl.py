@@ -259,7 +259,8 @@ class SmallChunkCollector(mp.Process):
                 smallchunk = self.extract_smallchunk(call_count, bigchunk, self.last_message_from_root)
                 call_count += 1
                 #print("... and extracted a smallchunk.")
-                self.queue_smallchunks.put_nowait(smallchunk)
+                if(smallchunk != None):
+                    self.queue_smallchunks.put_nowait(smallchunk)
                 #print("     placed a smallchunk in queue.")
         
     @abstractmethod     
@@ -275,6 +276,10 @@ class SmallChunkCollector(mp.Process):
             - bigchunk: the extracted bigchunk.
             - `last_message_fromroot`: The last messsage sent to this patient. Indeed, this is the message sent by calling the function
                                        `lightdl.send_message`.
+        Output:
+            - smallchunk: has to be either an instance of `SmallChunk` or None.
+                          Returning None means the `SmallChunkCollector` is no longer willing to extract `SmallChunk`s for, e.g.,
+                          it has sufficiently explored the patient's records. 
         '''
         pass
 
@@ -494,11 +499,11 @@ class LightDL(mp.Process):
         patients_forinitialload =\
                 random.choices(self.dataset.list_patients,\
                                k=self.const_global_info["num_bigchunkloaders"])
-        print(" loading initial bigchunks (please wait)")
+        print(" loading initial bigchunks, please wait ....")
         t1 = time.time()
         for i in range(len(patients_forinitialload)):
             # ~ print(" reached here 1")
-            print(" bigchunk {} from {}\n".format(i, len(patients_forinitialload)))
+            print("     bigchunk {} from {}, please wait ...\n".format(i, len(patients_forinitialload)))
             subproc = self.type_smallchunkcollector(
                                     patient=patients_forinitialload[i],\
                                     queue_smallchunks=mp.Queue(),\
@@ -544,7 +549,7 @@ class LightDL(mp.Process):
             tnow = time.time()
             time_from_lastresched = tnow - time_lastresched
             if(time_from_lastresched > self.const_global_info["interval_resched"]):
-                print("rescheduling -------- in time = {}".format(time.time()))
+                # ~ print("rescheduling -------- in time = {}".format(time.time()))
                 time_lastresched = time.time()
                 #setlect a ptient to add, and a subrpocess to remove
                 set_running_patients = set([subproc.patient\
@@ -565,7 +570,7 @@ class LightDL(mp.Process):
                 # ~ print("  list_loadedpatients: ")
                 # ~ print(list_loadedpatients)
                 # ~ print("  patient_toremove: ")
-                print(patient_toremove)
+                # ~ print(patient_toremove)
                 
                 #add the smallchunks of subproc_toremove to lightdl.queue ===============
                 size_queueof_subproctoremove = subproc_toremove.queue_smallchunks.qsize()
