@@ -222,7 +222,7 @@ class SmallChunkCollector(mp.Process):
         self.extract_smallchunk.
         '''
         os.nice(1000) #TODO:make tunable
-        print(" pid of smallchunkcollector: {}".format(os.getpid()))
+        # ~ print(" pid of smallchunkcollector: {}".format(os.getpid()))
         #print("in smallchunkloader, pid is: {}".format(os.getpid()))
         if(self.const_global_info["core-assignment"]["smallchunkloaders"] != None):
             # ~ p = psutil.Process()
