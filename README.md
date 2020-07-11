@@ -1,3 +1,6 @@
+
+[![button](button_quickstart.png)](https://amirakbarnejad.github.io/Tutorial/tutorial_section1.html)
+
 # PyDmed (Python Dataloader for Medical Imaging)
 
 The loading speed of hard drives is well below the processing speed of modern GPUs.
@@ -11,13 +14,13 @@ We want the dataloader to repeatedly do the following steps:
 2. crop and return a random 224x224 patch from the huge image.
 
 
-***PyDmed can solve this issue.*** 
+***PyDmed solves this issue.*** 
 
 
 # How It Works?
 The following two classes are pretty much the whole API of PyDmed.
 1. `BigChunk`: a relatively big chunk from a patient. It can be, e.g., a 5000x5000 patch from a huge whole-slide-image. 
-2. `SmallChunk`: a small data chunk collected from a big chunk. It can be, e.g., a 224x224 patch cropped from a 5000x5000 big chunk.
+2. `SmallChunk`: a small data chunk collected from a big chunk. It can be, e.g., a 224x224 patch cropped from a 5000x5000 big chunk. In the below figure, `SmallChunk`s are the blue small patches. 
 
 The below figure illustrates the idea of PyDmed. 
 As long as some `BigChunk`s are loaded into RAM, we can quickly collect some `SmallChunk`s and pass them to GPU(s).
