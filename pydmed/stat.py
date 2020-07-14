@@ -102,15 +102,16 @@ class StatCollector(object):
                         for patient in self.lightdl.dataset.list_patients:
                             toret_onfinish_collectedstats[patient] = \
                                     self.dict_patient_to_accumstat[patient]
-                    self._queue_onfinish_collectedstats.put_nowait(toret_onfinish_collectedstats)
+                    self._onfinish_collectedstats = toret_onfinish_collectedstats
+                    #self._queue_onfinish_collectedstats.put_nowait(toret_onfinish_collectedstats)
                     #stop the lightdl
                     self.lightdl.pause_loading()
                     break
     
     def get_finalstats(self):
         try:
-            toret = self._queue_onfinish_collectedstats.get()
-            return toret
+            # ~ toret = self._queue_onfinish_collectedstats.get()
+            return self._onfinish_collectedstats
         except:
             print("Error in getting the final collected stats. Is the StatCollector finished when you called `StatCollector.get_finalstats`?")
 
@@ -142,8 +143,7 @@ class StatCollector(object):
         Inputs.
             - TODO:adddoc, retval of collatefunc is by default, `x, list_patients, list_smallchunks`. But if you have overriden that output, ...
         Outputs.
-            - list_liststats: a list of the same lenght as list_patients. Each element of the list is itself a list
-                              of collected stats.
+            - list_liststats: a list of the same lenght as list_patients. Each element of the list is an instance of `Statistic`.
         '''
         pass
         

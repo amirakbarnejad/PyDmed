@@ -259,7 +259,12 @@ class SmallChunkCollector(mp.Process):
                 smallchunk = self.extract_smallchunk(call_count, bigchunk, self.last_message_from_root)
                 call_count += 1
                 #print("... and extracted a smallchunk.")
-                if(smallchunk != None):
+                if(isinstance(smallchunk, np.ndarray) == False):
+                    if(smallchunk == None):
+                        pass
+                    else:
+                        self.queue_smallchunks.put_nowait(smallchunk)
+                else:
                     self.queue_smallchunks.put_nowait(smallchunk)
                 #print("     placed a smallchunk in queue.")
         
@@ -446,38 +451,75 @@ class LightDL(mp.Process):
         # ~ print("get: reached here 4")
         return returnvalue_of_collatefunc #batch_smallchunks, batch_patients, toret_list_smallchunks
     
+    def get_list_loadedpatients(self):
+        '''
+        Returns the list of `Patient`s that are loaded, 
+        i.e., one `SmallChunkCollector` is collecting `SmallChunk`s from them. 
+        '''
+        list_loadedpatients = [subproc.patient\
+                               for subproc in list(self.active_subprocesses)]
+        return list_loadedpatients
     
-    def schedule(self, list_loadedpatients, list_waitingpatients):
+    
+    def get_list_waitingpatients(self):
+        '''
+        Returns the list of `Patient`s that are not loaded, 
+        i.e., no `SmallChunkCollector` is collecting `SmallChunk`s from them. 
+        '''
+        set_running_patients = set(self.get_list_loadedpatients())
+        set_waiting_patients = set(self.dataset.list_patients).difference(
+                                        set_running_patients)
+        return list(set_waiting_patients)
+    
+    
+    def get_schedcount_of(self, patient):
+        '''
+        Reuturns the number of times that a specific `Patient` has
+        been schedulled by scheduller.
+        '''
+        return self.dict_patient_to_schedcount[patient]
+    
+     
+    def initial_schedule(self):
+        '''
+        Used for selecting the initiail BigChunks.
+        This funciton has to return,
+            - `list_initial_patients`: a list containing `Patients` who are initially loaded.
+                        The length of the list must be equal to `self.const_global_info["num_bigchunkloaders"]`
+        '''
+        #Default is to choose randomly from dataset.
+        return random.choices(self.dataset.list_patients,\
+                              k=self.const_global_info["num_bigchunkloaders"])
+        
+    def schedule(self):
         '''
         This function is called when schedulling a new patient, i.e., loading a new BigChunk.
         This function has to return:
             - patient_toremove: the patient to remove, an instance of `utils.data.Patient`.
-            - patient_toadd: the patient to add, an instance of `utils.data.Patient`.
+            - patient_toload: the patient to load, an instance of `utils.data.Patient`.
         In this function, you have access to the following fields:
             - self.dict_patient_to_schedcount: given a patient, returns the number of times the patients has been schedulled in dl, a dictionary.
             - self.list_loadedpatients:
             - self.list_waitingpatients:
             - TODO: add more fields here to provide more flexibility. For instance, total time that the patient have been loaded on DL.
         '''
-        # ~ print("in schedule....")
-        # ~ print(" reached here 1")
-        waitingpatients_schedcount = [self.dict_patient_to_schedcount[patient]\
+        #get initial fields ==============================
+        list_loadedpatients = self.get_list_loadedpatients()
+        list_waitingpatients = self.get_list_waitingpatients()
+        waitingpatients_schedcount = [self.get_schedcount_of(patient)\
                                       for patient in list_waitingpatients]
-        # ~ print(self.dict_patient_to_schedcount)
-        # ~ print(" reached here 2")
-        weights = 1.0/(1.0+np.array(waitingpatients_schedcount))
-        weights[weights==1.0] =10000000.0 #give huge wait to the instances which are not schedulled so far.
-        patient_toadd = random.choices(list_waitingpatients,\
-                                      weights = weights, k=1)[0]
-        # ~ print(patient_toadd)
-        # ~ print(" reached here 3")
-        # ~ print(" in schedule, list_loadedpatients:")
-        # ~ print(list_loadedpatients)
+        
+        #patient_toremove is selected randomly =======================
         patient_toremove = random.choice(list_loadedpatients)
-        # ~ print(" in schedule, patient_toremove:")
-        # ~ print(patient_toremove)
-        # ~ print(" reached here 4")
-        return patient_toremove, patient_toadd
+        
+        #when choosing a patient to load, give huge weight to the instances which are not schedulled so far.
+        weights = 1.0/(1.0+np.array(waitingpatients_schedcount))
+        weights[weights==1.0] =10000000.0 #the places where schedcount is zero
+        patient_toload = random.choices(list_waitingpatients,\
+                                        weights = weights, k=1)[0]
+        
+        
+        return patient_toremove, patient_toload
         
         
     def run(self):
@@ -496,9 +538,9 @@ class LightDL(mp.Process):
         #save pid of lightdl (to do recursive kill on finish)
         self._queue_pid_of_lightdl.put_nowait(os.getpid())
         #initially fill the pool of subprocesses ========
-        patients_forinitialload =\
-                random.choices(self.dataset.list_patients,\
-                               k=self.const_global_info["num_bigchunkloaders"])
+        patients_forinitialload = self.initial_schedule()
+                # ~ random.choices(self.dataset.list_patients,\
+                               # ~ k=self.const_global_info["num_bigchunkloaders"])
         print(" loading initial bigchunks, please wait ....")
         t1 = time.time()
         for i in range(len(patients_forinitialload)):
@@ -552,14 +594,14 @@ class LightDL(mp.Process):
                 # ~ print("rescheduling -------- in time = {}".format(time.time()))
                 time_lastresched = time.time()
                 #setlect a ptient to add, and a subrpocess to remove
-                set_running_patients = set([subproc.patient\
-                                            for subproc in list(self.active_subprocesses)])
-                list_loadedpatients = [subproc.patient\
-                                       for subproc in list(self.active_subprocesses)]
-                set_waiting_patiens = set(self.dataset.list_patients).difference(
-                                       set_running_patients)
-                list_waitingpatients = list(set_waiting_patiens)
-                patient_toremove, patient_toadd = self.schedule(list_loadedpatients, list_waitingpatients)
+                # ~ set_running_patients = set([subproc.patient\
+                                            # ~ for subproc in list(self.active_subprocesses)])
+                # ~ list_loadedpatients = [subproc.patient\
+                                       # ~ for subproc in list(self.active_subprocesses)]
+                # ~ set_waiting_patiens = set(self.dataset.list_patients).difference(
+                                       # ~ set_running_patients)
+                # ~ list_waitingpatients = list(set_waiting_patiens)
+                patient_toremove, patient_toadd = self.schedule()
                 subproc_toremove = None
                 for subproc in list(self.active_subprocesses):
                     if(subproc.patient == patient_toremove):
