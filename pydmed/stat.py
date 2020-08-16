@@ -12,6 +12,8 @@ import openslide
 from multiprocessing import Process, Queue
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
+import pydmed.utils.output
+from pydmed.utils.output import StreamWriter
 
 
 class Statistic:
@@ -28,18 +30,22 @@ class Statistic:
 
 
 class StatCollector(object):
-    def __init__(self, lightdl, str_collectortype, flag_visualizestats=False):
+    def __init__(self, lightdl, str_collectortype, flag_visualizestats=False, kwargs_streamwriter=None):
         '''
-        TODO:adddoc. str_collectortype can be either "accum" or "saveall"
+        TODO:adddoc. str_collectortype can be "accum" or "saveall" or "stream_to_file"
         '''
         #grab initargs
         self.lightdl = lightdl
         self.str_collectortype = str_collectortype
         self.flag_visualizestats = flag_visualizestats
+        self.kwargs_streamwriter = kwargs_streamwriter
         #make internals
         self.dict_patient_to_liststats = {patient:[] for patient in self.lightdl.dataset.list_patients}
         self.dict_patient_to_accumstat = {patient:None for patient in self.lightdl.dataset.list_patients}
         self._queue_onfinish_collectedstats = mp.Queue()
+        if(self.str_collectortype.startswith("stream_to_file")):
+            self.streamwriter = StreamWriter(lightdl.dataset.list_patients, **kwargs_streamwriter)
+        
         
     
     def start(self):
@@ -48,6 +54,9 @@ class StatCollector(object):
         #make the following line tunable
         os.system("taskset -a -cp {} {}".format("0,1,2,3,4", os.getpid()))
         self.lightdl.start()
+        if(self.str_collectortype.startswith("stream_to_file")):
+            self.streamwriter.start()
+            print(" statcollector.streamwriter started ")
         
         
         #TODO:make the following lines tunable.
@@ -92,6 +101,7 @@ class StatCollector(object):
                 # ~ self.logfile.flush()
             #stop collecting if needed ======
             if((time.time()-time_lastcheck) > 5):#TODO:make tunable
+                time_lastcheck = time.time()
                 if(self.get_flag_finishcollecting() == True):
                     toret_onfinish_collectedstats = {}
                     #colllate all statistics
@@ -102,16 +112,24 @@ class StatCollector(object):
                         for patient in self.lightdl.dataset.list_patients:
                             toret_onfinish_collectedstats[patient] = \
                                     self.dict_patient_to_accumstat[patient]
+                    elif(self.str_collectortype.startswith("stream_to_file")):
+                        self.streamwriter.flush_and_close()
+                            
                     self._onfinish_collectedstats = toret_onfinish_collectedstats
-                    #self._queue_onfinish_collectedstats.put_nowait(toret_onfinish_collectedstats)
+                    if(self.str_collectortype.startswith("stream_to_file") == False):
+                        self._queue_onfinish_collectedstats.put_nowait(toret_onfinish_collectedstats)
+                    time.sleep(3) #TODO:make tunable
                     #stop the lightdl
                     self.lightdl.pause_loading()
                     break
     
     def get_finalstats(self):
         try:
-            # ~ toret = self._queue_onfinish_collectedstats.get()
-            return self._onfinish_collectedstats
+            if(self.str_collectortype.startswith("stream_to_file") == False):
+                toret = self._queue_onfinish_collectedstats.get()
+                return toret
+            
+            # ~ return self._onfinish_collectedstats
         except:
             print("Error in getting the final collected stats. Is the StatCollector finished when you called `StatCollector.get_finalstats`?")
 
@@ -124,6 +142,8 @@ class StatCollector(object):
                 self.dict_patient_to_accumstat[patient] = self.accum_statistics(self.dict_patient_to_accumstat[patient],
                                                                                 list_collectedstats[n],
                                                                                 patient)
+            elif(self.str_collectortype.startswith("stream_to_file")):
+                self.streamwriter.write(patient, list_collectedstats[n].stat)
                 
     
     
