@@ -291,7 +291,7 @@ class SmallChunkCollector(mp.Process):
 
 class LightDL(mp.Process):
     def __init__(self, dataset, type_bigchunkloader, type_smallchunkcollector,\
-                 const_global_info, batch_size, tfms, collate_func=None, fname_logfile=None):
+                 const_global_info, batch_size, tfms, flag_grabqueue_onunsched=True, collate_func=None, fname_logfile=None):
         '''
         Inputs:
             - dataset: an instance of pydmed.utils.Dataset.
@@ -313,6 +313,7 @@ class LightDL(mp.Process):
         self.const_global_info = const_global_info
         self.queue_lightdl = mp.Queue()
         self.batch_size = batch_size
+        self.flag_grabqueue_onunsched = flag_grabqueue_onunsched
         self.fname_logfile = fname_logfile
         if(collate_func == None):
             self.collate_func = LightDL.default_collate
@@ -615,13 +616,14 @@ class LightDL(mp.Process):
                 # ~ print(patient_toremove)
                 
                 #add the smallchunks of subproc_toremove to lightdl.queue ===============
-                size_queueof_subproctoremove = subproc_toremove.queue_smallchunks.qsize()
-                for count in range(size_queueof_subproctoremove):
-                    try:
-                        smallchunk = subproc_toremove.queue_smallchunks.get_nowait()
-                        self.queue_lightdl.put_nowait(smallchunk)
-                    except:
-                        pass
+                if(self.flag_grabqueue_onunsched == True):
+                    size_queueof_subproctoremove = subproc_toremove.queue_smallchunks.qsize()
+                    for count in range(size_queueof_subproctoremove):
+                        try:
+                            smallchunk = subproc_toremove.queue_smallchunks.get_nowait()
+                            self.queue_lightdl.put_nowait(smallchunk)
+                        except:
+                            pass
                 
                 #grab the last checkpoint of the subproc =======================
                 numcheckpoints_subproctoremove = subproc_toremove.queue_checkpoint.qsize()
