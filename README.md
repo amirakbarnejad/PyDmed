@@ -3,7 +3,7 @@
 
 # PyDmed (Python Dataloader for Medical Imaging)
 
-*** Sample notebooks are available in the folder [sample notebooks](https://https://github.com/amirakbarnejad/PyDmed/sample_notebooks). *** 
+*** Sample notebooks are available in the folder [sample notebooks](https://https://github.com/amirakbarnejad/PyDmed/tree/master/sample_notebooks). *** 
 
 The loading speed of hard drives is well below the processing speed of modern GPUs.
 This is problematic for machine learning algorithms, specially for medical imaging datasets with large instances.
