@@ -19,7 +19,7 @@ def lcm(list_numbers):
 def multimode(list_input):
     '''
     `statistics.multimode` does not exist in all python versions.
-    Therefore, we minimath.multimode is implemented.
+    Therefore minimath.multimode is implemented.
     '''
     set_data = set(list_input)
     dict_freqs = {val:0 for val in set_data}
@@ -27,4 +27,15 @@ def multimode(list_input):
         dict_freqs[elem] = dict_freqs[elem] + 1
     mode = max((v, k) for k, v in dict_freqs.items())[1]
     return mode
-        
+
+
+def multiminority(list_input):
+    '''
+    Returns the minority in a list. This function works if there are many minorities available in the list.
+    '''
+    set_data = set(list_input)
+    dict_freqs = {val:0 for val in set_data}
+    for elem in list_input:
+        dict_freqs[elem] = dict_freqs[elem] + 1
+    minority = min((v, k) for k, v in dict_freqs.items())[1]
+    return minority
