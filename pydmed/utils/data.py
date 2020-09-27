@@ -122,6 +122,83 @@ class Dataset:
         #make datasets from list_patients
         toret = [Dataset(dataset.str_dsname, u) for u in toret_list_patients]
         return toret
+    
+    
+    @staticmethod
+    def _split_list(list_input, percentage_partitions):
+        list_toret = []
+        for idx_percentage, percentage in enumerate(percentage_partitions):
+            picked_so_far = sum([len(u) for u in list_toret])
+            size_partition = math.floor(percentage* len(list_input)/100.0)
+            idx_begin = picked_so_far
+            idx_end = min(picked_so_far+size_partition, len(list_input))
+            if(idx_percentage == (len(percentage_partitions)-1)):
+                idx_end = len(list_input)
+            list_toret.append(list_input[idx_begin:idx_end])
+        assert(len(list_input) == sum([len(u) for u in list_toret]))
+        assert(set(list_input) == set.union(*[set(u) for u in list_toret]))
+        return list_toret
+            
+    
+    @staticmethod
+    def labelbalanced_splits_from(dataset, percentage_partitions,\
+                                  func_getlabel_of_patient, verbose=False):
+        '''
+        Splits a dataset to different datasets, e.g., [training-validation-test] such that all partitions
+        have equal share from different classes.
+        Inputs:
+            - dataset: the dataset, an instance of Dataset.
+            - percentage_partitions: the percentage of the partitions, a list.
+            - func_get_function_name: the labeling function for which the split is balanced.
+        '''
+        #get some constants/values ====
+        if(np.sum(percentage_partitions) != 100):
+            raise Exception("The elements of `percentage_partitions` must sum up to 100.")
+        num_chunks = len(percentage_partitions)
+        list_patients = dataset.list_patients
+        N = len(list_patients)
+        #split patients based on label ======
+        possible_labels = list(
+                  set(
+                    [func_getlabel_of_patient(patient)\
+                     for patient in dataset.list_patients]
+                  )     
+                )
+        # ~ print("possible_labels = {}".format(possible_labels))
+        dict_label_to_listpatients = {label:[] for label in possible_labels}
+        for patient in dataset.list_patients:
+            label_of_patient = func_getlabel_of_patient(patient)
+            dict_label_to_listpatients[label_of_patient].append(patient)
+        #make splits from each class =======
+        dict_label_to_listpartitions = {label:None for label in possible_labels}
+        for label in possible_labels:
+            patients_of_class = dict_label_to_listpatients[label]
+            random.shuffle(patients_of_class)
+            dict_label_to_listpartitions[label] = Dataset._split_list(patients_of_class, percentage_partitions)
+        #aggregate the splits of each class ====
+        list_toret = [[] for n in range(len(percentage_partitions))]
+        for label in possible_labels:
+            partitions_of_label = dict_label_to_listpartitions[label]
+            for idx_partition in range(len(percentage_partitions)):
+                list_toret[idx_partition] = list_toret[idx_partition] + partitions_of_label[idx_partition]
+        toret = [Dataset(dataset.str_dsname, u) for u in list_toret]
+        #make some assertions =====
+        set_union_of_splits = set.union(*[set(dataset.list_patients) for dataset in toret])
+        assert(set_union_of_splits == set(dataset.list_patients))
+        for i in range(len(toret)):
+            for j in range(len(toret)):
+                if(i != j):
+                    set_i = set(toret[i].list_patients)
+                    set_j = set(toret[j].list_patients)
+                    assert(set_i.isdisjoint(set_j))
+                    assert(set_j.isdisjoint(set_i))
+        #report the label frequencies, in verbose mode ====
+        if(verbose == True):
+            #TODO:HERE
+            assert False
+        return toret
+        
+        
             
         
     
