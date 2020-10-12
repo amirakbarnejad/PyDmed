@@ -9,7 +9,8 @@ import math
 import numpy as np
 import random
 import pydmed
-
+import pydmed.lightdl
+from pydmed import *
 
 class LabelBalancedDL(pydmed.lightdl.LightDL):
     '''

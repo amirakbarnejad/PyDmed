@@ -48,7 +48,7 @@ class StatCollector(object):
         
         
     
-    def start(self):
+    def start_collecting(self):
         
         
         #make the following line tunable
@@ -117,7 +117,7 @@ class StatCollector(object):
                             
                     self._onfinish_collectedstats = toret_onfinish_collectedstats
                     if(self.str_collectortype.startswith("stream_to_file") == False):
-                        self._queue_onfinish_collectedstats.put_nowait(toret_onfinish_collectedstats)
+                        pass #self._queue_onfinish_collectedstats.put_nowait(toret_onfinish_collectedstats)
                     time.sleep(3) #TODO:make tunable
                     #stop the lightdl
                     self.lightdl.pause_loading()
@@ -126,7 +126,7 @@ class StatCollector(object):
     def get_finalstats(self):
         try:
             if(self.str_collectortype.startswith("stream_to_file") == False):
-                toret = self._queue_onfinish_collectedstats.get()
+                toret = self._onfinish_collectedstats #self._queue_onfinish_collectedstats.get()
                 return toret
             
             # ~ return self._onfinish_collectedstats
