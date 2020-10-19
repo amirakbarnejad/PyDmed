@@ -50,7 +50,7 @@ class LabelBalancedDL(pydmed.lightdl.LightDL):
         self.dict_label_to_listpatients = dict_label_to_listpatients
     
     def initial_schedule(self):
-        print("override initsched called.")
+        # ~ print("override initsched called.")
         #split numbigchunks to lists of almost equal length ======
         avg_inbin = self.const_global_info["num_bigchunkloaders"]/len(self.possible_labels)
         avg_inbin = math.floor(avg_inbin)
@@ -68,7 +68,7 @@ class LabelBalancedDL(pydmed.lightdl.LightDL):
         return toret_list_patients
     
     def schedule(self):
-        print("override sched called.")
+        # ~ print("override sched called.")
         #get initial fields ==============================
         list_loadedpatients = self.get_list_loadedpatients()
         list_waitingpatients = self.get_list_waitingpatients()
