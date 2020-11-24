@@ -104,6 +104,7 @@ class StreamWriter(mp.Process):
         '''
         if(self.flag_closecalled == False):
             self.queue_towrite.put_nowait({"patient": patient, "str_towrite":str_towrite})
+            print("placed a message to be written in StreamWriter's queue.")
         else:
             print("`StreamWriter` cannot `write` after calling the `close` function.")
     
@@ -113,7 +114,9 @@ class StreamWriter(mp.Process):
         '''
         if(self.queue_towrite.qsize() > 0):
             try:
+                print("before get_nowait ...")
                 poped_elem = self.queue_towrite.get_nowait()
+                print("after get_nowait ...")
                 if(self.op_mode == 1):
                     self.list_files[0].write(poped_elem["str_towrite"])
                 elif(self.op_mode == 2):
@@ -121,8 +124,10 @@ class StreamWriter(mp.Process):
                     assert(patient in self.list_patients)
                     idx_patient = self.list_patients.index(patient)
                     self.list_files[idx_patient].write(str_towrite)
-            except:
-                pass
+                    print("   elemenet wrote to file ...")
+            except Exception as e:
+                print("\n\n\n\n*************")
+                print(str(e))
             
         
     def _wrt_onclose(self):
