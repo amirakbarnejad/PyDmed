@@ -102,13 +102,8 @@ class BigChunkLoader(mp.Process):
         
     def run(self):
         """Loads a bigchunk and waits for the patchcollector to enqueue the bigchunk."""
-        # ~ os.nice(1000) #TODO:make tunable
         #assign the bigchunkloader to core
         if(self.const_global_info["core-assignment"]["bigchunkloaders"] != None):
-            # ~ p = psutil.Process()
-            # ~ idx_cores = [int(u) for u in self.const_global_info["core-assignment"]["bigchunkloaders"].split(",")]
-            # ~ p.cpu_affinity(idx_cores)
-            # ~ print("in bigchunkloader, idx_cores={}".format(idx_cores))
             os.system("taskset -cp {} {}".format(self.const_global_info["core-assignment"]["bigchunkloaders"], os.getpid()))
             print(" taskset called for bigchunkloader")
             
@@ -546,178 +541,42 @@ class LightDL(mp.Process):
         
         
     def run(self):
-        # ~ dlmed.utils.multiproc.set_nicemax()
-        # ~ os.nice(100000) #TODO:make tunable.
-        #set niceness
-        # ~ os.nice(1) #TODO:make tunable
-        #assign to core
-        if(self.const_global_info["core-assignment"]["lightdl"] != None):
-            # ~ p = psutil.Process()
-            # ~ idx_cores = [int(u) for u in self.const_global_info["core-assignment"]["lightdl"].split(",")]
-            # ~ p.cpu_affinity(idx_cores)
-            # ~ print("in lightdl, idx_cores={}".format(idx_cores))
-            os.system("taskset -a -cp {} {}".format(self.const_global_info["core-assignment"]["lightdl"], os.getpid()))
-            print(" taskset called for lightdl")
-        #save pid of lightdl (to do recursive kill on finish)
-        self._queue_pid_of_lightdl.put_nowait(os.getpid())
-        #initially fill the pool of subprocesses ========
-        patients_forinitialload = self.initial_schedule()
-                # ~ random.choices(self.dataset.list_patients,\
-                               # ~ k=self.const_global_info["num_bigchunkloaders"])
-        print(" loading initial bigchunks, please wait ....")
-        t1 = time.time()
-        for i in range(len(patients_forinitialload)):
-            # ~ print(" reached here 1")
-            print("     bigchunk {} from {}, please wait ...\n".format(i, len(patients_forinitialload)))
-            if(self._queue_messages_to_subprocs != None):
-                last_message_from_root = pydmed.utils.multiproc.poplast_from_queue(
-                                self._queue_messages_to_subprocs[patients_forinitialload[i]]
-                            )
-            else:
-                last_message_from_root = None
-            if(self._queue_messages_to_subprocs != None):
-                old_checkpoint = self.dict_patient_to_checkpoint[patients_forinitialload[i]]
-                queue_checkpoint = self._dict_patient_to_queueckpoint[patients_forinitialload[i]]
-            else:
-                old_checkpoint = None
-                queue_checkpoint = None
-            subproc = self.type_smallchunkcollector(
-                                    patient=patients_forinitialload[i],\
-                                    queue_smallchunks=mp.Queue(),\
-                                    const_global_info=self.const_global_info,\
-                                    type_bigchunkloader=self.type_bigchunkloader,\
-                                    queue_logs=self._queue_logs,\
-                                    old_checkpoint = old_checkpoint,\
-                                    queue_checkpoint = queue_checkpoint,\
-                                    last_message_from_root = last_message_from_root
-                            )
-            # ~ print(" reached here 2")
-            self.active_subprocesses.add(subproc)
-            # ~ print(" reached here 3")
-            subproc.start()
-            # ~ print(" reached here 4")
-            self.dict_patient_to_schedcount[subproc.patient] = self.dict_patient_to_schedcount[subproc.patient] + 1
-            # ~ print(" reached here 5")
-            while(subproc.queue_smallchunks.qsize() == 0):
-                pass
-            # ~ print(" reached here 6")
-                #wait untill the bigchunk is loaded and something the smallchunkcollector collects the first smallchunk.
-        t2 = time.time()
-        print("The initial loading of bigchunks took {} seconds.".format(t2-t1))
-        #patrol the subprocesses ======================
-        time_lastresched = time.time() + 1*self.const_global_info["interval_resched"]
-        while(True):
-            # ~ print("============= lightdl-queue.qsize() = {} ===========".format(self.queue_lightdl.qsize()))
-            #collect patches from the subporcesses ============
-            while(self.queue_lightdl.qsize() >=\
-                  self.const_global_info["maxlength_queue_lightdl"]):
-                pass
-                #wait until queue_lightdl becomes less heavy.
-            for subproc in list(self.active_subprocesses):
-                if(subproc.queue_smallchunks.empty() == False):
-                    try:
-                        smallchunk = subproc.queue_smallchunks.get_nowait()
-                        self.queue_lightdl.put_nowait(smallchunk)
-                        #print("lightdl placed smallchunk in queue")
-                        #print("LightPatcher collected patches from WSI {}"\
-                        #      .format(subproc.fname_wsi))
-                    except:
-                        pass
-            #replace a subprocesses if needed =======================
-            tnow = time.time()
-            time_from_lastresched = tnow - time_lastresched
-            if(time_from_lastresched > self.const_global_info["interval_resched"]):
-                # ~ print("rescheduling -------- in time = {}".format(time.time()))
-                time_lastresched = time.time()
-                #setlect a ptient to add, and a subrpocess to remove
-                # ~ set_running_patients = set([subproc.patient\
-                                            # ~ for subproc in list(self.active_subprocesses)])
-                # ~ list_loadedpatients = [subproc.patient\
-                                       # ~ for subproc in list(self.active_subprocesses)]
-                # ~ set_waiting_patiens = set(self.dataset.list_patients).difference(
-                                       # ~ set_running_patients)
-                # ~ list_waitingpatients = list(set_waiting_patiens)
-                # ~ print("reached before schedule")
-                patient_toremove, patient_toadd = self.schedule()
-                # ~ print("reached after schedule")
-                flag_sched_returnednan = True
-                if(isinstance(patient_toremove, pydmed.utils.data.Patient)):
-                    flag_sched_returnednan = False
-                    assert(isinstance(patient_toadd, pydmed.utils.data.Patient))
-                if(flag_sched_returnednan == True):
-                    # ~ print("  reached here 1")
-                    pass #do not reschedule
+        
+        try:
+        
+            #assign to core
+            if(self.const_global_info["core-assignment"]["lightdl"] != None):
+                # ~ p = psutil.Process()
+                # ~ idx_cores = [int(u) for u in self.const_global_info["core-assignment"]["lightdl"].split(",")]
+                # ~ p.cpu_affinity(idx_cores)
+                # ~ print("in lightdl, idx_cores={}".format(idx_cores))
+                os.system("taskset -a -cp {} {}".format(self.const_global_info["core-assignment"]["lightdl"], os.getpid()))
+                print(" taskset called for lightdl")
+            #save pid of lightdl (to do recursive kill on finish)
+            self._queue_pid_of_lightdl.put_nowait(os.getpid())
+            #initially fill the pool of subprocesses ========
+            patients_forinitialload = self.initial_schedule()
+                    # ~ random.choices(self.dataset.list_patients,\
+                                   # ~ k=self.const_global_info["num_bigchunkloaders"])
+            print(" loading initial bigchunks, please wait ....")
+            t1 = time.time()
+            for i in range(len(patients_forinitialload)):
+                # ~ print(" reached here 1")
+                print("     bigchunk {} from {}, please wait ...\n".format(i, len(patients_forinitialload)))
+                if(self._queue_messages_to_subprocs != None):
+                    last_message_from_root = pydmed.utils.multiproc.poplast_from_queue(
+                                    self._queue_messages_to_subprocs[patients_forinitialload[i]]
+                                )
                 else:
-                    # ~ print("  reached here 2")
-                    subproc_toremove = None
-                    for subproc in list(self.active_subprocesses):
-                        if(subproc.patient == patient_toremove):
-                            # ~ print("   found subproc_toremove")
-                            subproc_toremove = subproc
-                            break
-                    # ~ print(subproc_toremove)
-                    # ~ print("  list_loadedpatients: ")
-                    # ~ print(list_loadedpatients)
-                    # ~ print("  patient_toremove: ")
-                    # ~ print(patient_toremove)
-                    
-                    #add the smallchunks of subproc_toremove to lightdl.queue ===============
-                    if(self.flag_grabqueue_onunsched == True):
-                        size_queueof_subproctoremove = subproc_toremove.queue_smallchunks.qsize()
-                        for count in range(size_queueof_subproctoremove):
-                            try:
-                                smallchunk = subproc_toremove.queue_smallchunks.get_nowait()
-                                self.queue_lightdl.put_nowait(smallchunk)
-                            except Exception as e:
-                                print("an exception occured at line 641")
-                                print(str(e))
-                                
-                    
-                    #grab the last checkpoint of the subproc =======================
-                    if(self.flag_enable_setgetcheckpoint == True):
-                        numcheckpoints_subproctoremove = subproc_toremove.queue_checkpoint.qsize()
-                        last_checkpoint = None
-                        for count in range(numcheckpoints_subproctoremove):
-                            try:
-                                last_checkpoint = subproc_toremove.queue_checkpoint.get_nowait()
-                            except Exception as e:
-                                print("an exception occured at line 652")
-                                print(str(e))
-                                
-                        self.dict_patient_to_checkpoint[patient_toremove] = last_checkpoint
-                    # ~ print("  reached here 3")
-                    if(subproc_toremove == None):
-                        print("patient_toremove not found in the list of waiting patients.")
-                        _terminaterecursively(self.pid)
-                    # ~ print("  reached here 4")
-                    # ~ print(subproc_toremove)
-                    # ~ print("  reached here 5")
-                    #print("  patient toremove: {}".format(subproc_toremove.patient.name))
-                    #print("  patient toadd: {}".format(patient_toadd.name))
-                    #remove the subprocess
-                    self.active_subprocesses.remove(subproc_toremove)
-                    # ~ print("  reached here 6")
-                    #print("reached here 4")
-                    # ~ dlmed.utils.multiproc.terminaterecursively(subproc_toremove.pid)
-                    LightDL._terminaterecursively(subproc_toremove.pid)
-                    # ~ print("  reached here 7")
-                    #subproc_toremove.kill()
-                    #print("reached here 5")
-                    #add a new process for patient_toadd
-                    if(self._queue_messages_to_subprocs != None):
-                        last_message_from_root = pydmed.utils.multiproc.poplast_from_queue(
-                                self._queue_messages_to_subprocs[patients_forinitialload[i]]
-                            )
-                    else:
-                        last_message_from_root = None
-                    if(self._queue_messages_to_subprocs != None):
-                        old_checkpoint = self.dict_patient_to_checkpoint[patients_forinitialload[i]]
-                        queue_checkpoint = self._dict_patient_to_queueckpoint[patient_toadd]
-                    else:
-                        old_checkpoint = None
-                        queue_checkpoint = None
-                    new_subproc = self.type_smallchunkcollector(\
-                                        patient=patient_toadd,\
+                    last_message_from_root = None
+                if(self._queue_messages_to_subprocs != None):
+                    old_checkpoint = self.dict_patient_to_checkpoint[patients_forinitialload[i]]
+                    queue_checkpoint = self._dict_patient_to_queueckpoint[patients_forinitialload[i]]
+                else:
+                    old_checkpoint = None
+                    queue_checkpoint = None
+                subproc = self.type_smallchunkcollector(
+                                        patient=patients_forinitialload[i],\
                                         queue_smallchunks=mp.Queue(),\
                                         const_global_info=self.const_global_info,\
                                         type_bigchunkloader=self.type_bigchunkloader,\
@@ -725,16 +584,161 @@ class LightDL(mp.Process):
                                         old_checkpoint = old_checkpoint,\
                                         queue_checkpoint = queue_checkpoint,\
                                         last_message_from_root = last_message_from_root
-                                    )
-                    # ~ print("  reached here 8")
-                    #print("reached here 6")
-                    self.active_subprocesses.add(new_subproc)
-                    # ~ print("  reached here 9")
-                    #print("reached here 7")
-                    self.dict_patient_to_schedcount[new_subproc.patient] = self.dict_patient_to_schedcount[new_subproc.patient] + 1 
-                    # ~ print("  reached here 10")
-                    new_subproc.start()
-                    # ~ print("  reached here 11")
+                                )
+                # ~ print(" reached here 2")
+                self.active_subprocesses.add(subproc)
+                # ~ print(" reached here 3")
+                subproc.start()
+                # ~ print(" reached here 4")
+                self.dict_patient_to_schedcount[subproc.patient] = self.dict_patient_to_schedcount[subproc.patient] + 1
+                # ~ print(" reached here 5")
+                while(subproc.queue_smallchunks.qsize() == 0):
+                    pass
+                # ~ print(" reached here 6")
+                    #wait untill the bigchunk is loaded and something the smallchunkcollector collects the first smallchunk.
+            t2 = time.time()
+            print("The initial loading of bigchunks took {} seconds.".format(t2-t1))
+            #patrol the subprocesses ======================
+            time_lastresched = time.time() + 1*self.const_global_info["interval_resched"]
+            while(True):
+                # ~ print("============= lightdl-queue.qsize() = {} ===========".format(self.queue_lightdl.qsize()))
+                #collect patches from the subporcesses ============
+                while(self.queue_lightdl.qsize() >=\
+                      self.const_global_info["maxlength_queue_lightdl"]):
+                    pass
+                    #wait until queue_lightdl becomes less heavy.
+                for subproc in list(self.active_subprocesses):
+                    if(subproc.queue_smallchunks.empty() == False):
+                        try:
+                            smallchunk = subproc.queue_smallchunks.get_nowait()
+                            self.queue_lightdl.put_nowait(smallchunk)
+                            #print("lightdl placed smallchunk in queue")
+                            #print("LightPatcher collected patches from WSI {}"\
+                            #      .format(subproc.fname_wsi))
+                        except:
+                            pass
+                #replace a subprocesses if needed =======================
+                tnow = time.time()
+                time_from_lastresched = tnow - time_lastresched
+                if(time_from_lastresched > self.const_global_info["interval_resched"]):
+                    # ~ print("rescheduling -------- in time = {}".format(time.time()))
+                    time_lastresched = time.time()
+                    #setlect a ptient to add, and a subrpocess to remove
+                    # ~ set_running_patients = set([subproc.patient\
+                                                # ~ for subproc in list(self.active_subprocesses)])
+                    # ~ list_loadedpatients = [subproc.patient\
+                                           # ~ for subproc in list(self.active_subprocesses)]
+                    # ~ set_waiting_patiens = set(self.dataset.list_patients).difference(
+                                           # ~ set_running_patients)
+                    # ~ list_waitingpatients = list(set_waiting_patiens)
+                    # ~ print("reached before schedule")
+                    patient_toremove, patient_toadd = self.schedule()
+                    # ~ print("reached after schedule")
+                    flag_sched_returnednan = True
+                    if(isinstance(patient_toremove, pydmed.utils.data.Patient)):
+                        flag_sched_returnednan = False
+                        assert(isinstance(patient_toadd, pydmed.utils.data.Patient))
+                    if(flag_sched_returnednan == True):
+                        # ~ print("  reached here 1")
+                        pass #do not reschedule
+                    else:
+                        # ~ print("  reached here 2")
+                        subproc_toremove = None
+                        for subproc in list(self.active_subprocesses):
+                            if(subproc.patient == patient_toremove):
+                                # ~ print("   found subproc_toremove")
+                                subproc_toremove = subproc
+                                break
+                        # ~ print(subproc_toremove)
+                        # ~ print("  list_loadedpatients: ")
+                        # ~ print(list_loadedpatients)
+                        # ~ print("  patient_toremove: ")
+                        # ~ print(patient_toremove)
+                        
+                        #add the smallchunks of subproc_toremove to lightdl.queue ===============
+                        if(self.flag_grabqueue_onunsched == True):
+                            size_queueof_subproctoremove = subproc_toremove.queue_smallchunks.qsize()
+                            for count in range(size_queueof_subproctoremove):
+                                try:
+                                    smallchunk = subproc_toremove.queue_smallchunks.get_nowait()
+                                    self.queue_lightdl.put_nowait(smallchunk)
+                                except Exception as e:
+                                    print("an exception occured at line 641")
+                                    print(str(e))
+                                    
+                        
+                        #grab the last checkpoint of the subproc =======================
+                        if(self.flag_enable_setgetcheckpoint == True):
+                            numcheckpoints_subproctoremove = subproc_toremove.queue_checkpoint.qsize()
+                            last_checkpoint = None
+                            for count in range(numcheckpoints_subproctoremove):
+                                try:
+                                    last_checkpoint = subproc_toremove.queue_checkpoint.get_nowait()
+                                except Exception as e:
+                                    print("an exception occured at line 652")
+                                    print(str(e))
+                                    
+                            self.dict_patient_to_checkpoint[patient_toremove] = last_checkpoint
+                        # ~ print("  reached here 3")
+                        if(subproc_toremove == None):
+                            print("patient_toremove not found in the list of waiting patients.")
+                            _terminaterecursively(self.pid)
+                        # ~ print("  reached here 4")
+                        # ~ print(subproc_toremove)
+                        # ~ print("  reached here 5")
+                        #print("  patient toremove: {}".format(subproc_toremove.patient.name))
+                        #print("  patient toadd: {}".format(patient_toadd.name))
+                        #remove the subprocess
+                        self.active_subprocesses.remove(subproc_toremove)
+                        # ~ print("  reached here 6")
+                        #print("reached here 4")
+                        # ~ dlmed.utils.multiproc.terminaterecursively(subproc_toremove.pid)
+                        LightDL._terminaterecursively(subproc_toremove.pid)
+                        # ~ print("  reached here 7")
+                        #subproc_toremove.kill()
+                        #print("reached here 5")
+                        #add a new process for patient_toadd
+                        if(self._queue_messages_to_subprocs != None):
+                            last_message_from_root = pydmed.utils.multiproc.poplast_from_queue(
+                                    self._queue_messages_to_subprocs[patients_forinitialload[i]]
+                                )
+                        else:
+                            last_message_from_root = None
+                        if(self._queue_messages_to_subprocs != None):
+                            old_checkpoint = self.dict_patient_to_checkpoint[patients_forinitialload[i]]
+                            queue_checkpoint = self._dict_patient_to_queueckpoint[patient_toadd]
+                        else:
+                            old_checkpoint = None
+                            queue_checkpoint = None
+                        new_subproc = self.type_smallchunkcollector(\
+                                            patient=patient_toadd,\
+                                            queue_smallchunks=mp.Queue(),\
+                                            const_global_info=self.const_global_info,\
+                                            type_bigchunkloader=self.type_bigchunkloader,\
+                                            queue_logs=self._queue_logs,\
+                                            old_checkpoint = old_checkpoint,\
+                                            queue_checkpoint = queue_checkpoint,\
+                                            last_message_from_root = last_message_from_root
+                                        )
+                        # ~ print("  reached here 8")
+                        #print("reached here 6")
+                        self.active_subprocesses.add(new_subproc)
+                        # ~ print("  reached here 9")
+                        #print("reached here 7")
+                        self.dict_patient_to_schedcount[new_subproc.patient] = self.dict_patient_to_schedcount[new_subproc.patient] + 1 
+                        # ~ print("  reached here 10")
+                        new_subproc.start()
+                        # ~ print("  reached here 11")
+        except Exception as e:
+            print("An exception occured in LightDL.")
+            print(str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print("\n\n\n")
+            _terminaterecursively(self.pid)
+            
+                        
                 
                 
             
