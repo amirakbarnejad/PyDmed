@@ -449,7 +449,7 @@ class LightDL(mp.Process):
         while(len(list_poped_smallchunks) < self.batch_size):
             if(self.queue_lightdl.qsize()>0):
                 try:
-                    smallchunk = self.queue_lightdl.get()
+                    smallchunk = self.queue_lightdl.get_nowait()
                     list_poped_smallchunks.append(smallchunk)
                 except:
                     pass
