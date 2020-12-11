@@ -228,7 +228,7 @@ class SmallChunkCollector(mp.Process):
         Loads a bigchunk, waits for the bigchunk to be loaded, and then makes calls to
         self.extract_smallchunk.
         '''
-        os.nice(1000) #TODO:make tunable
+        # ~ os.nice(1000) #TODO:make tunable
         # ~ print(" pid of smallchunkcollector: {}".format(os.getpid()))
         #print("in smallchunkloader, pid is: {}".format(os.getpid()))
         if(self.const_global_info["core-assignment"]["smallchunkloaders"] != None):
