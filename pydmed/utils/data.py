@@ -8,7 +8,6 @@ import time
 import random
 import copy
 import multiprocessing as mp
-import openslide
 from multiprocessing import Process, Queue
 import pydmed.utils.minimath
 
