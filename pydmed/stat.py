@@ -1,5 +1,6 @@
 
 
+
 import numpy as np
 import os, sys
 import math
@@ -56,7 +57,7 @@ class StatCollector(object):
         self.lightdl.start()
         if(self.str_collectortype.startswith("stream_to_file")):
             self.streamwriter.start()
-            print(" statcollector.streamwriter started ")
+            # ~ print(" statcollector.streamwriter started ")
         
         
         #TODO:make the following lines tunable.
@@ -81,24 +82,21 @@ class StatCollector(object):
             # ~ plt.show()
         while True:
             count +=1 
-            #collect statistics ============
+            
+            #get an instance from the DL ============
             retval_dl = self.lightdl.get()
-            if((count%10) == 0):
-                print(" got {} stats".format(count))
-            list_collectedstats = self.get_statistics(retval_dl)
-            list_patients = [st.source_smallchunk.patient for st in list_collectedstats]
-            self._manage_stats(list_collectedstats, list_patients)
-            # ~ #show the visstats if needed ====
-            # ~ if((time.time()-time_lastupdate_visstats)>5):
-                # ~ time_lastupdate_visstats = time.time()
-                # ~ towrite = [len(self.dict_patient_to_liststats[pat]) for pat in self.dict_patient_to_liststats.keys()]
-                # ~ str_towrite = ""
-                # ~ for u in towrite:
-                    # ~ str_towrite = str_towrite + str(u) + " , "
-                # ~ str_towrite += "\n"
-                # ~ self.logfile.write(str_towrite)
-                # ~ print("wrote to file: {}".format(str_towrite))
-                # ~ self.logfile.flush()
+            flag_invalid_retvaldl = False
+            if(isinstance(retval_dl, str)):
+                if(retval_dl == pydmed.lightdl.PYDMEDRESERVED_DLRETURNEDLASTINSTANCE):
+                    flag_invalid_retvaldl = True
+            
+            #collect stat only if the retval is valid =====
+            if(flag_invalid_retvaldl == False):
+                list_collectedstats = self.get_statistics(retval_dl)
+                list_patients = [st.source_smallchunk.patient for st in list_collectedstats]
+                self._manage_stats(list_collectedstats, list_patients)
+            
+            
             #stop collecting if needed ======
             if((time.time()-time_lastcheck) > 5):#TODO:make tunable
                 time_lastcheck = time.time()

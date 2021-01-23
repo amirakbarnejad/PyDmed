@@ -1,5 +1,6 @@
 
 
+
 '''
 General TODO:s
     - replace os.nice and taskset with cross-platform counterparts.
@@ -15,6 +16,7 @@ import re
 import time
 import random
 import multiprocessing as mp
+import subprocess
 from abc import ABC, abstractmethod
 import openslide
 import torch
@@ -24,6 +26,13 @@ from multiprocessing import Process, Queue
 import pydmed.utils.multiproc
 from pydmed.utils.multiproc import *
 
+
+'''
+Global enumerations. 
+As enum is only supported for python 3.4+, pydmed uses some global variables.
+'''
+PYDMEDRESERVED_HALTDL = "PYDMEDRESERVED_HALTDL"
+PYDMEDRESERVED_DLRETURNEDLASTINSTANCE = "PYDMEDRESERVED_DL_RETURNED_LAST_INSTANCE"
 
 def get_default_constglobinf():
     toret = {
@@ -169,6 +178,7 @@ class SmallChunkCollector(mp.Process):
         self._cached_checkpoint = "TODO:packagename reserverd: empty cache"
         self._queue_status = mp.Queue()
         self._cached_status = "TODO:packagename reserverd: empty cache"
+        self._queue_bigchunkloader_terminated = mp.Queue()
         
     def log(self, str_input):
         '''
@@ -190,9 +200,9 @@ class SmallChunkCollector(mp.Process):
         This function returns the last status of `SmallChunkCollector`, which is previously set
         by calling the function `SmallChunkCollector.set_status`.
         '''
-        print("get status called")
+        # ~ print("get status called")
         qsize_status = self._queue_status.qsize()
-        print("qsize_status = {}".format(qsize_status))
+        # ~ print("qsize_status = {}".format(qsize_status))
         if(qsize_status > 0):
             last_status = None
             for count in range(qsize_status):
@@ -203,11 +213,11 @@ class SmallChunkCollector(mp.Process):
                     # ~ print("an excection occured in get_status function")
                     # ~ print(str(e))
                     # ~ print("   get status returned")
-            print("   get status returned")
+            # ~ print("   get status returned")
             self._cached_status = last_status
             return last_status
         else:
-            print("return cached status")
+            # ~ print("return cached status")
             return self._cached_status
     
     def get_checkpoint(self):
@@ -256,6 +266,8 @@ class SmallChunkCollector(mp.Process):
             #TODO:make the waiting more efficient
         #collect the bigchunk and start extracting patches from it
         # ~ print("reached here 5")
+        self._queue_bigchunkloader_terminated.put_nowait("Finished loading a bigchunk")
+        
         bigchunk = queue_bc.get()
         # ~ print("reached here 6")
         call_count = 0
@@ -275,6 +287,16 @@ class SmallChunkCollector(mp.Process):
                     self.queue_smallchunks.put_nowait(smallchunk)
                 #print("     placed a smallchunk in queue.")
         
+    def get_flag_bigchunkloader_terminated(self):
+        try:
+            if(self._queue_bigchunkloader_terminated.qsize() > 0):
+                return True
+            else:
+                return False
+        except:
+            print("Exception occured in get_flag_bigchunkloader_terminated")
+            return False
+    
     @abstractmethod     
     def extract_smallchunk(self, call_count, bigchunk, last_message_fromroot):
         '''
@@ -333,6 +355,7 @@ class LightDL(mp.Process):
         #make internals ====
         self.active_subprocesses = set() #set of currently active processes
         self._queue_pid_of_lightdl = mp.Queue()
+        self._queue_message_lightdlfinished = mp.Queue()
         self.dict_patient_to_schedcount = {patient:0 for patient in self.dataset.list_patients}
         #self.list_poped_entities = []
         self.list_smallchunksforvis = [] #smallchunks without data and only for visualization.
@@ -409,7 +432,30 @@ class LightDL(mp.Process):
         except:
             pass
     
-    
+    def is_dl_running(self):
+        '''
+        If the DL is still working, returns True.
+        Otherwise returns False.
+        Warning: executing this function may take alot of time.
+                Avoid making frequent calls to this function.
+        '''
+        #try to get the qsize of finish message queue.
+        try:
+            qsize_finishmessage = self._queue_message_lightdlfinished.qsize()
+        except:
+            return True
+        
+        if(qsize_finishmessage > 0):
+            return False
+        else:
+            return True
+        # ~ p = subprocess.Popen(['date']) #date command exists in both linux and windows.
+        # ~ poll = p.poll()
+        # ~ if poll is None:
+            # ~ return True
+        # ~ else:
+            # ~ return False
+        
     def visualize(self, func_visualize_one_patient):
         '''
             When visualizing the collected instances by lightdl, you should call `visualize` function.
@@ -445,14 +491,42 @@ class LightDL(mp.Process):
     def get(self):
         #make toret values =================
         list_poped_smallchunks = []
-        # ~ print("get: reached here 1")
-        while(len(list_poped_smallchunks) < self.batch_size):
-            if(self.queue_lightdl.qsize()>0):
-                try:
-                    smallchunk = self.queue_lightdl.get_nowait()
-                    list_poped_smallchunks.append(smallchunk)
-                except:
-                    pass
+        flag_dl_running = self.is_dl_running()
+        if(flag_dl_running == True):
+            while(len(list_poped_smallchunks) < self.batch_size):
+                #try to get a new instance ====
+                if(self.queue_lightdl.qsize()>0):
+                    try:
+                        smallchunk = self.queue_lightdl.get_nowait()
+                        list_poped_smallchunks.append(smallchunk)
+                    except:
+                        pass
+                #if dl_is_finished and Q is empty, exit the while loop
+                if((self.is_dl_running()==False) and (self.queue_lightdl.qsize()==0)):
+                    #in this case,  `get` function has no chance to collect more instances
+                    
+                    if(len(list_poped_smallchunks) == 0):
+                        #if the list is empty, it means no more instances are to be collected.
+                        return PYDMEDRESERVED_DLRETURNEDLASTINSTANCE
+                    else:
+                        #some instances are collected, then break the while loop and continue as before
+                        break
+        elif(flag_dl_running == False):
+            #in this case, `get` will return the Q instances one-by-one regardless of the the `batch_size`.
+            if(self.queue_lightdl.qsize() > 0):
+                while(len(list_poped_smallchunks) < 1):
+                    #try to get a new instance ====
+                    if(self.queue_lightdl.qsize()>0):
+                        try:
+                            smallchunk = self.queue_lightdl.get_nowait()
+                            list_poped_smallchunks.append(smallchunk)
+                        except:
+                            pass
+            else:
+                #in this case, dl is finished and Q is empty.
+                return PYDMEDRESERVED_DLRETURNEDLASTINSTANCE
+                        
+                
         # ~ print("get: reached here 2")
         returnvalue_of_collatefunc = self.collate_func(list_poped_smallchunks, self.tfms)
         # ~ print("get: reached here 3")
@@ -633,6 +707,12 @@ class LightDL(mp.Process):
                     # ~ list_waitingpatients = list(set_waiting_patiens)
                     # ~ print("reached before schedule")
                     patient_toremove, patient_toadd = self.schedule()
+                    if(isinstance(patient_toremove, str)):
+                        if(patient_toremove == PYDMEDRESERVED_HALTDL):
+                            self._queue_message_lightdlfinished.put_nowait("DL-Finished")
+                            while(True): pass #the DL process has to be terminated by the parent process. LightDL._terminaterecursively(self.pid)
+                            
+                    
                     # ~ print("reached after schedule")
                     flag_sched_returnednan = True
                     if(isinstance(patient_toremove, pydmed.utils.data.Patient)):
@@ -705,7 +785,7 @@ class LightDL(mp.Process):
                         else:
                             last_message_from_root = None
                         if(self._queue_messages_to_subprocs != None):
-                            old_checkpoint = self.dict_patient_to_checkpoint[patients_forinitialload[i]]
+                            old_checkpoint = self.dict_patient_to_checkpoint[patient_toadd]
                             queue_checkpoint = self._dict_patient_to_queueckpoint[patient_toadd]
                         else:
                             old_checkpoint = None
@@ -742,6 +822,3 @@ class LightDL(mp.Process):
                 
                 
             
-
-
-
