@@ -374,6 +374,7 @@ class SlidingWindowDL(pydmed.lightdl.LightDL):
         self.const_global_info["pdmreserved_func_patient_to_fnameimage"] = func_patient_to_fnameimage
         self.const_global_info["pdmreserved_mininterval_loadnewbigchunk"] = mininterval_loadnewbigchunk
         self.const_global_info["pdmreserved_tfms_onsmallchunkcollection"] = tfms_onsmallchunkcollection
+    
     def initial_schedule(self):
         #Default is to choose randomly from dataset.
         toret =  random.choices(
