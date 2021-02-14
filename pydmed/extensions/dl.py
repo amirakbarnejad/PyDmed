@@ -111,13 +111,14 @@ class SlidingWindowSmallChunkCollector(pydmed.lightdl.SmallChunkCollector):
         assert(self.mode_trainortest in ["train", "test"])
         self.flag_unschedme = False
         #grab privates
-        self.tfms_onsmallchunkcollection =\
-            torchvision.transforms.Compose([
-            torchvision.transforms.ToPILImage(),\
-            torchvision.transforms.ToTensor(),\
-            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],\
-                                             std=[0.229, 0.224, 0.225])
-        ])
+        self.tfms_onsmallchunkcollection = self.const_global_info["pdmreserved_tfms_onsmallchunkcollection"]
+        # ~ \
+            # ~ torchvision.transforms.Compose([
+            # ~ torchvision.transforms.ToPILImage(),\
+            # ~ torchvision.transforms.ToTensor(),\
+            # ~ torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],\
+                                             # ~ std=[0.229, 0.224, 0.225])
+        # ~ ])
         
     def slice_by_slidingwindow(self, W, kernel_size, stride):
         '''
@@ -335,6 +336,7 @@ class SlidingWindowDL(pydmed.lightdl.LightDL):
     def __init__(
         self, intorfunc_opslevel, kernel_size,
         func_patient_to_fnameimage, stride, mininterval_loadnewbigchunk, 
+        tfms_onsmallchunkcollection, 
         *args, **kwargs):
         '''
         Inputs.
@@ -352,6 +354,8 @@ class SlidingWindowDL(pydmed.lightdl.LightDL):
             - mininterval_loadnewbigchunk: a floating point number, minimum time (in seconds)
                 between loading two bigchunks.
                 This number depends on how big each `BigChunk` is as well as system specs.
+            - tfms_onsmallchunkcollection: a callable object, the transformations to be applied to each SmallChunk (i.e. each tile).
+            
                 
         '''
         super(SlidingWindowDL, self).__init__(*args, **kwargs)
@@ -369,6 +373,7 @@ class SlidingWindowDL(pydmed.lightdl.LightDL):
         self.const_global_info["pdmreserved_stride"] = stride
         self.const_global_info["pdmreserved_func_patient_to_fnameimage"] = func_patient_to_fnameimage
         self.const_global_info["pdmreserved_mininterval_loadnewbigchunk"] = mininterval_loadnewbigchunk
+        self.const_global_info["pdmreserved_tfms_onsmallchunkcollection"] = tfms_onsmallchunkcollection
     def initial_schedule(self):
         #Default is to choose randomly from dataset.
         toret =  random.choices(
