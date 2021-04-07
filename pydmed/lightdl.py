@@ -111,6 +111,10 @@ class BigChunkLoader(mp.Process):
         
     def run(self):
         """Loads a bigchunk and waits for the patchcollector to enqueue the bigchunk."""
+        
+        #set random seed using time ====
+        np.random.seed(int(time.time()))
+        
         #assign the bigchunkloader to core
         if(self.const_global_info["core-assignment"]["bigchunkloaders"] != None):
             os.system("taskset -cp {} {}".format(self.const_global_info["core-assignment"]["bigchunkloaders"], os.getpid()))
@@ -238,6 +242,9 @@ class SmallChunkCollector(mp.Process):
         Loads a bigchunk, waits for the bigchunk to be loaded, and then makes calls to
         self.extract_smallchunk.
         '''
+        #set random seed using time ====
+        np.random.seed(int(time.time()))
+        
         # ~ os.nice(1000) #TODO:make tunable
         # ~ print(" pid of smallchunkcollector: {}".format(os.getpid()))
         #print("in smallchunkloader, pid is: {}".format(os.getpid()))
