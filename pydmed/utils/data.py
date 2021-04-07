@@ -30,6 +30,18 @@ class Patient:
         
     def __eq__(self, other):
         return (self.int_uniqueid == other.int_uniqueid)
+        
+    def __lt__(self, other):
+         return self.int_uniqueid < other.int_uniqueid
+         
+    def __le__(self, other):
+         return self.int_uniqueid <= other.int_uniqueid
+         
+    def __gt__(self, other):
+         return self.int_uniqueid > other.int_uniqueid
+         
+    def __ge__(self, other):
+         return self.int_uniqueid >= other.int_uniqueid
     
 class Record:
     def __init__(self, rootdir, relativedir, dict_infos):

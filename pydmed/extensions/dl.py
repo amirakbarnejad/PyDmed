@@ -189,9 +189,12 @@ class SlidingWindowSmallChunkCollector(pydmed.lightdl.SmallChunkCollector):
             x_end = x_begin + w
             num_cols = self.slice_by_slidingwindow(W, kernel_size, stride)
             flag_auxlastcol = False
+            vertbar_overlaptheprevpatch = "None"
             if(x_end > W):
+                prev_x_end = x_end-stride
                 x_end = W
                 x_begin = W-w
+                vertbar_overlaptheprevpatch = kernel_size-(x_end-prev_x_end)
                 flag_auxlastcol = True
             
             WSI_H = bigchunk.dict_info_of_bigchunk["WSI_H"]
@@ -234,7 +237,8 @@ class SlidingWindowSmallChunkCollector(pydmed.lightdl.SmallChunkCollector):
                 smallchunk = SmallChunk(data=toret,\
                                         dict_info_of_smallchunk={
                                             "x":x_begin, "y":0,\
-                                            "flag_auxlastcol":flag_auxlastcol
+                                            "flag_auxlastcol":flag_auxlastcol,
+                                            "vertbar_overlaptheprevpatch":vertbar_overlaptheprevpatch
                                         },\
                                         dict_info_of_bigchunk = bigchunk.dict_info_of_bigchunk,\
                                         patient=bigchunk.patient
@@ -299,12 +303,16 @@ class SlidingWindowBigChunkLoader(pydmed.lightdl.BigChunkLoader):
                 return "None-Bigchunk" #it happens when a done case is loaded by schedule.
             y_end = y_begin + h
             flag_from_auxbigrow = False
+            horizbar_overlaptheprevpatch = "None"
             if(y_end > H):
                 #refine the range for the last bigrow
+                old_y_end, old_y_begin = y_end+0.0, y_begin+0.0
+                prev_y_end, prev_y_begin = old_y_end-stride+0.0, old_y_begin-stride+0.0 
                 y_end = H-1
                 y_begin = H-kernel_size-1
                 y_begin_at_level0 = int(y_begin*osimage.level_downsamples[attention_levelidx])
                 flag_from_auxbigrow = True
+                horizbar_overlaptheprevpatch = kernel_size - (y_end-prev_y_end)
             pil_bigchunk = osimage.read_region(
                                 [0, y_begin_at_level0],
                                 attention_levelidx,
@@ -320,9 +328,10 @@ class SlidingWindowBigChunkLoader(pydmed.lightdl.BigChunkLoader):
                                 dict_info_of_bigchunk={
                                     "W":W, "H":H, "x":0, "y":y_begin,
                                     "WSI_W":W, "WSI_H":H,
-                                    "flag_from_auxbigrow":flag_from_auxbigrow,
                                     "num_bigrows":num_bigrows,
-                                    "idx_bigrow":idx_bigrow
+                                    "idx_bigrow":idx_bigrow,
+                                    "flag_from_auxbigrow":flag_from_auxbigrow,
+                                    "horizbar_overlaptheprevpatch": horizbar_overlaptheprevpatch
                                 },\
                                 patient=patient_without_foregroundmask
                          )
