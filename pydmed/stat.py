@@ -17,20 +17,20 @@ import pydmed.utils.output
 from pydmed.utils.output import StreamWriter
 
 
-class Statistic:
-    def __init__(self, stat, source_smallchunk):
+class ProcessedPiece:
+    def __init__(self, data, source_smallchunk):
          '''
          Inputs:
-            - stat: a statistic from a smallchunk.
+            - data: the data part of the processed piece.
             - source_smallchunk: the `SmallChunk` from which the stat is collected.
          '''
          #grab privates
-         self.stat = stat
+         self.stat = data
          self.source_smallchunk = source_smallchunk
          self.source_smallchunk.data = "None, to avoid memory leak"
 
 
-class StatCollector(object):
+class StreamCollector(object):
     def __init__(self, lightdl, str_collectortype, flag_visualizestats=False, kwargs_streamwriter=None):
         '''
         TODO:adddoc. str_collectortype can be "accum" or "saveall" or "stream_to_file"
@@ -92,7 +92,7 @@ class StatCollector(object):
             
             #collect stat only if the retval is valid =====
             if(flag_invalid_retvaldl == False):
-                list_collectedstats = self.get_statistics(retval_dl)
+                list_collectedstats = self.process_pieceofstream(retval_dl)
                 list_patients = [st.source_smallchunk.patient for st in list_collectedstats]
                 self._manage_stats(list_collectedstats, list_patients)
             
@@ -129,7 +129,7 @@ class StatCollector(object):
             
             # ~ return self._onfinish_collectedstats
         except:
-            print("Error in getting the final collected stats. Is the StatCollector finished when you called `StatCollector.get_finalstats`?")
+            print("Error in getting the final collected stats. Is the StreamCollector finished when you called `StreamCollector.get_finalstats`?")
 
     def _manage_stats(self, list_collectedstats, list_patients):
         for n in range(len(list_patients)):
@@ -155,7 +155,7 @@ class StatCollector(object):
         pass
     
     @abstractmethod
-    def get_statistics(self, returnvalue_of_collatefunction):
+    def process_pieceofstream(self, returnvalue_of_collatefunction):
         '''
         The abstract method that specifies the stat.collector's behaviour.
         Inputs.
@@ -177,7 +177,7 @@ class StatCollector(object):
         This fucntion should collate and return the collected stats for the input patient and collected stats.
         Inputs.
             - patient: the patient, and instance of of utils.data.Patient.
-            - list_collectedstats: the collected statistics, a list of objects as returned by `StatCollector.get_statistics`.
+            - list_collectedstats: the collected statistics, a list of objects as returned by `StreamCollector.process_pieceofstream`.
         '''
         pass
     
