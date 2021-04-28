@@ -237,6 +237,8 @@ class SlidingWindowSmallChunkCollector(pydmed.lightdl.SmallChunkCollector):
                 smallchunk = SmallChunk(data=toret,\
                                         dict_info_of_smallchunk={
                                             "x":x_begin, "y":0,\
+                                            "patch_levelidx":attention_levelidx,
+                                            "kernel_size":kernel_size,
                                             "flag_auxlastcol":flag_auxlastcol,
                                             "vertbar_overlaptheprevpatch":vertbar_overlaptheprevpatch
                                         },\
@@ -292,6 +294,7 @@ class SlidingWindowBigChunkLoader(pydmed.lightdl.BigChunkLoader):
                 attention_levelidx = intorfunc_opslevel(self.patient)
             w, h = kernel_size, kernel_size #in the taget level
             W, H = osimage.level_dimensions[attention_levelidx] #size in the target level
+            downsample_of_patchlevel = osimage.level_downsamples[attention_levelidx] 
             num_bigrows = self.slice_by_slidingwindow(H, kernel_size, stride)
             
             #extract the target row ====
@@ -328,6 +331,7 @@ class SlidingWindowBigChunkLoader(pydmed.lightdl.BigChunkLoader):
                                 dict_info_of_bigchunk={
                                     "W":W, "H":H, "x":0, "y":y_begin,
                                     "WSI_W":W, "WSI_H":H,
+                                    "downsample_of_patchlevel":downsample_of_patchlevel,
                                     "num_bigrows":num_bigrows,
                                     "idx_bigrow":idx_bigrow,
                                     "flag_from_auxbigrow":flag_from_auxbigrow,
