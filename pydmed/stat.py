@@ -198,3 +198,4 @@ class StreamCollector(object):
 
 StatCollector = StreamCollector #to support previous versions.
 Statistic = ProcessedPiece #to support previous versions.
+
