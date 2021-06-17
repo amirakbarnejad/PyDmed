@@ -11,6 +11,15 @@ import pydmed
 import pydmed.lightdl
 from pydmed import *
 from pydmed.lightdl import *
+from datetime import datetime
+
+
+def default_func_patient_to_fnameimage(patient_input):
+    fname_wsi = os.path.join(
+            patient_input.dict_records["H&E"].rootdir,
+            patient_input.dict_records["H&E"].relativedir
+          )
+    return fname_wsi
 
 
 def Tensor3DtoPdmcsvrow(np_input, smalchunk_input):
@@ -286,7 +295,9 @@ class SlidingWindowSmallChunkCollector(pydmed.lightdl.SmallChunkCollector):
             flag_lastbigchunk = (bigchunk_idxbigrow == (bigchunk_numbigrows-1))
             #(bigchunk.dict_info_of_bigchunk["y"]+2*h) > WSI_H
             if(np.random.rand() < 0.2):
-                print("Please wait. SlidingWindowDL is still working ..... ")
+                str_now = datetime.now().strftime("%d/%m/%Y %H:%M:%S").replace(" ", "-")
+                str_now = str_now.replace("/","-")
+                print("Please wait. SlidingWindowDL is still working .....  (printed on {})".format(str_now), end="\r")
                 pass
             
             if(call_count > (num_cols-1)):
@@ -424,8 +435,8 @@ class SlidingWindowBigChunkLoader(pydmed.lightdl.BigChunkLoader):
 class SlidingWindowDL(pydmed.lightdl.LightDL):
     def __init__(
         self, intorfunc_opslevel, kernel_size,
-        func_patient_to_fnameimage, stride, mininterval_loadnewbigchunk, 
-        tfms_onsmallchunkcollection, 
+        stride, mininterval_loadnewbigchunk, 
+        tfms_onsmallchunkcollection, func_patient_to_fnameimage = None,
         *args, **kwargs):
         '''
         Inputs.
@@ -460,7 +471,10 @@ class SlidingWindowDL(pydmed.lightdl.LightDL):
         self.const_global_info["pdmreserved_intorfunc_opslevel"] = intorfunc_opslevel
         self.const_global_info["pdmreserved_kernel_size"] = kernel_size
         self.const_global_info["pdmreserved_stride"] = stride
-        self.const_global_info["pdmreserved_func_patient_to_fnameimage"] = func_patient_to_fnameimage
+        if(func_patient_to_fnameimage != None):
+            self.const_global_info["pdmreserved_func_patient_to_fnameimage"] = func_patient_to_fnameimage
+        else:
+            self.const_global_info["pdmreserved_func_patient_to_fnameimage"] = default_func_patient_to_fnameimage
         self.const_global_info["pdmreserved_mininterval_loadnewbigchunk"] = mininterval_loadnewbigchunk
         self.const_global_info["pdmreserved_tfms_onsmallchunkcollection"] = tfms_onsmallchunkcollection
     

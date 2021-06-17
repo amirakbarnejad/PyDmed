@@ -26,10 +26,12 @@ class ProcessedPiece:
             - source_smallchunk: the `SmallChunk` from which the stat is collected.
          '''
          #grab privates
-         if(isinstance(data, np.ndarray) == True):
+         if(stat is None):
             self.stat = data
-         else:
+         elif(data is None):
              self.stat = stat
+         else:
+             raise Exception("When creating a `ProcessedPiece`, either the argument `data` or the argument `stat` must be set to zero.")
          self.source_smallchunk = source_smallchunk
          self.source_smallchunk.data = "None, to avoid memory leak"
 
