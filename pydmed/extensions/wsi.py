@@ -44,6 +44,11 @@ def Tensor3DtoPdmcsvrow(np_input, smalchunk_input):
        str(np_input.flatten().tolist())[1:-1] + "\n"
     return str_toret
     
+def _float_or_nan(x):
+    try:
+        return float(x)
+    except:
+        return np.nan
 
 
 def pdmcsvtoarray(fname_pdmcsv, func_WSIxyWHval_to_rasterpoints, scale_upsampleraster=1.0):
@@ -81,7 +86,7 @@ def pdmcsvtoarray(fname_pdmcsv, func_WSIxyWHval_to_rasterpoints, scale_upsampler
             if(isinstance(list_numbers[idx], str)):
                 if("None" in list_numbers[idx]):
                     list_numbers[idx] = np.nan
-        list_numbers = [float(u) for u in list_numbers]
+        list_numbers = [_float_or_nan(u) for u in list_numbers]
         
         if(count_line == 1):
             H, W = list_numbers[2], list_numbers[3]
@@ -96,6 +101,8 @@ def pdmcsvtoarray(fname_pdmcsv, func_WSIxyWHval_to_rasterpoints, scale_upsampler
         h = int(list_numbers[8])
         w = int(list_numbers[9])
         val = list_numbers[10:] #np.mean(np.array([list_numbers[4:]]))
+        
+        print("W={} , H = {}".format(W, H))
         
         #convert the points to raster space using the function
         list_x_onraster, list_y_onraster, val = func_WSIxyWHval_to_rasterpoints(
@@ -112,6 +119,12 @@ def pdmcsvtoarray(fname_pdmcsv, func_WSIxyWHval_to_rasterpoints, scale_upsampler
                      math.floor(list_y_onraster[idx_rasterpoint])
                     )
                 ] = val[idx_rasterpoint]
+            #print("set raster at [{} , {}]".format(math.floor(list_x_onraster[idx_rasterpoint]),
+            #         math.floor(list_y_onraster[idx_rasterpoint])))
+    
+    for temp_xy in dict_raster.keys():
+        print(temp_xy)
+    
     
     #convert dict_raster to np.ndarray =====
     list_allrasterx, list_allrastery = [], []
@@ -166,28 +179,52 @@ class DefaultWSIxyWHvaltoRasterPoints:
                 patch_levelidx, kernel_size,
                 downsample_of_patchlevel,
                 c, h, w, val):
-        assert(isinstance(val, list))
-        assert((c*h*w)== len(val))
-        np_val = np.reshape(val, [c,h,w])
-        
-        size_blockonraster = h #np.sqrt(len(val))
-        scale_wsi_to_raster = kernel_size/size_blockonraster
-        x_onraster = (x+0.0)/scale_wsi_to_raster
-        y_onraster = (y+0.0)/scale_wsi_to_raster
-        #make list_x_onraster and list_y_onraster ======
-        np_x_onraster = np.array([[j for j in range(int(size_blockonraster))]\
-                             for i in range(int(size_blockonraster))]).flatten()+x_onraster
-        np_y_onraster = np.array([[i for j in range(int(size_blockonraster))]\
-                             for i in range(int(size_blockonraster))]).flatten()+y_onraster
-        list_x_onraster = np_x_onraster.tolist()
-        list_y_onraster = np_y_onraster.tolist()
-        toret_val = []
-        for i in range(h):
-            for j in range(w):
-                toret_val.append(np_val[:,i,j])
-        return list_x_onraster, list_y_onraster, toret_val
-
-
+        try:
+            
+            if((c*h*w) != len(val)):
+                print("Warning: the line in the csv file is of length {} which is not equal to CxHxW.".format(len(val)))
+                print(" [c,h,w] = [{},{},{}]".format(c,h,w))
+            else:
+                pass
+                #print("OK: ...")
+                
+            assert(isinstance(val, list))
+            assert((c*h*w)== len(val))
+            np_val = np.reshape(val, [c,h,w])
+            
+            size_blockonraster = h #np.sqrt(len(val))
+            scale_wsi_to_raster = kernel_size/size_blockonraster
+            x_onraster = (x+0.0)/scale_wsi_to_raster
+            y_onraster = (y+0.0)/scale_wsi_to_raster
+            #make list_x_onraster and list_y_onraster ======
+            np_x_onraster = np.array([[j for j in range(int(size_blockonraster))]\
+                                 for i in range(int(size_blockonraster))]).flatten()+x_onraster
+            np_y_onraster = np.array([[i for j in range(int(size_blockonraster))]\
+                                 for i in range(int(size_blockonraster))]).flatten()+y_onraster
+            list_x_onraster = np_x_onraster.tolist()
+            list_y_onraster = np_y_onraster.tolist()
+            toret_val = []
+            for i in range(h):
+                for j in range(w):
+                    toret_val.append(np_val[:,i,j])
+            return list_x_onraster, list_y_onraster, toret_val
+        except:
+            size_blockonraster = h #np.sqrt(len(val))
+            scale_wsi_to_raster = kernel_size/size_blockonraster
+            x_onraster = (x+0.0)/scale_wsi_to_raster
+            y_onraster = (y+0.0)/scale_wsi_to_raster
+            #make list_x_onraster and list_y_onraster ======
+            np_x_onraster = np.array([[j for j in range(int(size_blockonraster))]\
+                                 for i in range(int(size_blockonraster))]).flatten()+x_onraster
+            np_y_onraster = np.array([[i for j in range(int(size_blockonraster))]\
+                                 for i in range(int(size_blockonraster))]).flatten()+y_onraster
+            list_x_onraster = np_x_onraster.tolist()
+            list_y_onraster = np_y_onraster.tolist()
+            toret_val = []
+            for i in range(h):
+                for j in range(w):
+                    toret_val.append(0.0)
+            return list_x_onraster, list_y_onraster, toret_val
 
 class SlidingWindowSmallChunkCollector(pydmed.lightdl.SmallChunkCollector):
     def __init__(self, *args, **kwargs):
