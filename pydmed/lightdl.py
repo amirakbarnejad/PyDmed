@@ -750,8 +750,8 @@ class LightDL(mp.Process):
                                     smallchunk = subproc_toremove.queue_smallchunks.get_nowait()
                                     self.queue_lightdl.put_nowait(smallchunk)
                                 except Exception as e:
-                                    print("an exception occured at line 641")
-                                    print(str(e))
+                                    print("Warning: Some smallchunks may have lost. If not, you can safely ignore this warning.")
+                                    #print(str(e))
                                     
                         
                         #grab the last checkpoint of the subproc =======================
