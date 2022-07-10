@@ -30,3 +30,10 @@ As illustrated below, `BigChunk`s are loaded/replaced from disk time to time.
 ![Alt Text](howitworks.gif)
 
 [![button](button_quickstart2.png)](https://amirakbarnejad.github.io/Tutorial/tutorial_section1.html)
+
+
+# Installation
+PyDmed is now available as a pyton local package. To use PyDmed one needs to have the folder called `PyDmed/` (by, e.g., cloning the repo).
+Afterwards, the folder has to be added to `sys.path` as done in [sample notebook 1](https://github.com/amirakbarnejad/PyDmed/blob/8ef0f6b9282815498bc50bf31a827a8a7eeb48a8/sample_notebooks/sample_1_train_classifier.ipynb)
+or in [the sample colab notebook](https://colab.research.google.com/drive/1WvntL-guv9JATJQWaS_Ww32DLBwGd9Ux?usp=sharing).
+
