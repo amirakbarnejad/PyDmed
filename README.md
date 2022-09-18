@@ -31,6 +31,9 @@ As illustrated below, `BigChunk`s are loaded/replaced from disk time to time.
 
 [![button](button_quickstart2.png)](https://amirakbarnejad.github.io/Tutorial/tutorial_section1.html)
 
+# Issues
+We regularly check for possible issues and update pydmed. Please check out "Issues" if you faced any problems running pydmed.
+If you couldn't find your issue there, please raise the issue so we can improve pydmed. 
 
 # Installation
 PyDmed is now available as a pyton local package. To use PyDmed one needs to have the folder called `PyDmed/` (by, e.g., cloning the repo).
