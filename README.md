@@ -40,3 +40,15 @@ PyDmed is now available as a pyton local package. To use PyDmed one needs to hav
 Afterwards, the folder has to be added to `sys.path` as done in [sample notebook 1](https://github.com/amirakbarnejad/PyDmed/blob/8ef0f6b9282815498bc50bf31a827a8a7eeb48a8/sample_notebooks/sample_1_train_classifier.ipynb)
 or in [the sample colab notebook](https://colab.research.google.com/drive/1WvntL-guv9JATJQWaS_Ww32DLBwGd9Ux?usp=sharing).
 
+# Citation
+To cide pydmed, please cite the following paper
+
+
+@inproceedings{akbarnejad2021deep,
+  title={Deep Fisher Vector Coding For Whole Slide Image Classification},
+  author={Akbarnejad, Amir and Ray, Nilanjan and Bigras, Gilbert},
+  booktitle={2021 IEEE 18th International Symposium on Biomedical Imaging (ISBI)},
+  pages={243--246},
+  year={2021},
+  organization={IEEE}
+}
