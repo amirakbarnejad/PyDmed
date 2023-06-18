@@ -124,14 +124,16 @@ class BigChunkLoader(mp.Process):
         bigchunk = self.extract_bigchunk(self.last_message_from_root)
         #place the bigchunk in the queue
         self.queue_bigchunk.put_nowait(bigchunk)
-        # ~ if(self.path_logfiles != None):
-            # ~ self.logfile.flush()
         
-        # ~ self.logfile.close()
-        #wait untill being terminated
-        #TODO:make the waiting more efficient
-#         while(True):
-#             pass
+        #the bigchunk loader is kept running (to be quitted by smallchunk collector).
+        flag_enteredthewhileloop = False
+        while(True):
+            if(flag_enteredthewhileloop == False):
+                flag_enteredthewhileloop = True
+                #akdump("entered_the_whileafterputnowait")
+            pass
+            time.sleep(1)
+        
     
     def log(self, str_input):
         '''
@@ -277,6 +279,9 @@ class SmallChunkCollector(mp.Process):
         
         bigchunk = queue_bc.get()
         # ~ print("reached here 6")
+        
+        proc_bcloader.terminate()
+        
         call_count = 0
         while(True):
             if(self.queue_smallchunks.qsize() < self.const_global_info["maxlength_queue_smallchunk"]):
